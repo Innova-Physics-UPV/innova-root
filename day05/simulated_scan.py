@@ -1,38 +1,64 @@
-"""Aproximación didáctica; NO RF-Track ni modelo físico de cavidad."""
-import argparse
-import itertools
+"""Día 5: barrido ficticio para entender simulations, particles y run_id.
+
+La fórmula y los parámetros son ejemplos nuevos, NO un modelo de RF-Track.
+"""
+from pathlib import Path
 import numpy as np
-from innova.io import save_results, rows_to_columns
+import uproot
 
-def run_simulation(gradient, phase, n, seed):
-    rng = np.random.default_rng(seed)
-    # Fórmula inventada y etiquetada únicamente para ensayar el pipeline.
-    return np.column_stack((rng.normal(0, 1, n), rng.normal(0, 1, n),
-                            rng.normal(gradient*np.cos(np.deg2rad(phase)), .1, n)))
+Path('data').mkdir(exist_ok=True)
+gradients = [10., 11., 12.]
+phases = [0., 20.]
+n_particles = 100
+rng = np.random.default_rng(42)
 
-def calculate_summary(data):
-    return {'mean_energy': float(data[:, 2].mean()),
-            'sigma_energy': float(data[:, 2].std(ddof=0))}
+# Una lista de filas globales y otra de bloques de partículas.
+simulation_rows = []
+particle_blocks = []
+run_id = 0
 
-def scan(gradients=(10., 11., 12.), phases=(0., 20.), n=100, seed=42):
-    if n <= 0:
-        raise ValueError('n debe ser positivo')
-    summaries, parts = [], []
-    for run_id, (gradient, phase) in enumerate(itertools.product(gradients, phases)):
-        data = run_simulation(gradient, phase, n, seed+run_id)
-        summaries.append(dict(run_id=run_id, gradient=gradient, phase=phase,
-                              **calculate_summary(data)))
-        parts.append(dict(run_id=np.full(n, run_id, dtype=np.int64),
-                          x=data[:, 0], y=data[:, 1], energy=data[:, 2]))
-    return rows_to_columns(summaries), {k: np.concatenate([p[k] for p in parts]) for k in parts[0]}
+for gradient in gradients:
+    for phase in phases:
+        # Datos inventados para practicar. Sus unidades no representan una cavidad.
+        x = rng.normal(0., 1., n_particles)
+        y = rng.normal(0., 1., n_particles)
+        energy = rng.normal(gradient*np.cos(np.deg2rad(phase)), .1, n_particles)
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--output', default='data/simulated_scan.root')
-    args = parser.parse_args()
-    sim, particles = scan()
-    save_results(args.output, sim, particles)
-    print('simulations:', len(sim['run_id']), 'particles:', len(particles['run_id']))
+        simulation_rows.append({
+            'run_id': run_id, 'gradient': gradient, 'phase': phase,
+            'mean_energy': energy.mean(), 'sigma_energy': energy.std(),
+        })
+        particle_blocks.append({
+            'run_id': np.full(n_particles, run_id, dtype=np.int64),
+            'x': x, 'y': y, 'energy': energy,
+        })
+        run_id += 1
 
-if __name__ == '__main__':
-    main()
+# uproot necesita columnas. Pasamos las seis filas de resumen a arrays.
+simulations = {}
+for name in simulation_rows[0]:
+    values = [row[name] for row in simulation_rows]
+    dtype = np.int64 if name == 'run_id' else np.float64
+    simulations[name] = np.array(values, dtype=dtype)
+
+# Reunimos los seis bloques de 100 partículas: 600 filas en total.
+particles = {}
+for name in particle_blocks[0]:
+    particles[name] = np.concatenate([block[name] for block in particle_blocks])
+
+with uproot.recreate('data/simulated_scan.root') as file:
+    for name, columns in [('simulations', simulations), ('particles', particles)]:
+        types = {column: values.dtype for column, values in columns.items()}
+        tree = file.mktree(name, types)
+        tree.extend(columns)
+
+# Buscar una simulación por sus parámetros y luego sus partículas por run_id.
+with uproot.open('data/simulated_scan.root') as file:
+    sim = file['simulations'].arrays(library='np')
+    part = file['particles'].arrays(library='np')
+selected = (sim['gradient'] == 11.) & (sim['phase'] == 20.)
+selected_id = sim['run_id'][selected][0]
+energies = part['energy'][part['run_id'] == selected_id]
+print('Simulaciones:', len(sim['run_id']))
+print('Partículas:', len(part['run_id']))
+print('run_id seleccionado:', selected_id, 'partículas asociadas:', len(energies))

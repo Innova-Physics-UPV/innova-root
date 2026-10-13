@@ -1,6 +1,6 @@
-Originales suministrados por Luiscarlos: Funciones.py y Sweeps y Operaciones.ipynb.
-Conservados byte a byte; hashes en ../../docs/ORIGINALS.json.
-No ejecutar automáticamente el notebook: sus parámetros difieren del PDF.
-Adaptador nuevo en ../../day06/javier_adapter.py; consultar ADAPTER.md.
-Esta carpeta sigue excluida de Git salvo este README. El ZIP local incluye los
-originales suministrados. No se ha publicado ni se ha añadido una licencia a Javier.
+Originales suministrados por Luiscarlos, conservados byte a byte.
+Hashes: ../../docs/ORIGINALS.json. No se ejecuta el notebook automáticamente.
+El día 6 importa las funciones directamente: ../../day06/rftrack_scan.py.
+Sus parámetros siguen el PDF, no los cambios de algunas celdas del notebook.
+Esta carpeta se excluye automáticamente de Git salvo README; el ZIP incluye
+los dos originales. No se ha publicado ni añadido una licencia a Javier.

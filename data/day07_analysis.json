@@ -1,0 +1,38 @@
+{
+  "simulations": 3,
+  "particles": 60000,
+  "selected_simulations": 2,
+  "selected_mean_kinetic_energy_MeV": 0.05133478971009009,
+  "runs": [
+    {
+      "run_id": 0,
+      "A": 0.08,
+      "mean_kinetic_energy_MeV": 0.049153770208312686,
+      "energy_spread_rms_MeV": 0.009041893371709483,
+      "phase_spread_rms_deg": 75.07531264838262,
+      "transmission_fraction": 1.0,
+      "n_macroparticles_injected": 20000,
+      "particles_stored": 20000
+    },
+    {
+      "run_id": 1,
+      "A": 0.1,
+      "mean_kinetic_energy_MeV": 0.05053196716370301,
+      "energy_spread_rms_MeV": 0.011156333953085983,
+      "phase_spread_rms_deg": 67.0741896568789,
+      "transmission_fraction": 1.0,
+      "n_macroparticles_injected": 20000,
+      "particles_stored": 20000
+    },
+    {
+      "run_id": 2,
+      "A": 0.12,
+      "mean_kinetic_energy_MeV": 0.05213761225647717,
+      "energy_spread_rms_MeV": 0.01318751802422367,
+      "phase_spread_rms_deg": 60.71074536637847,
+      "transmission_fraction": 1.0,
+      "n_macroparticles_injected": 20000,
+      "particles_stored": 20000
+    }
+  ]
+}

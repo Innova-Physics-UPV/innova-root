@@ -1,95 +1,140 @@
+"""Comprobar resultados de los ejemplos. No hace falta leer tests para aprender."""
+import contextlib
+import hashlib
 import importlib.util
+import io
+import json
+import os
+from pathlib import Path
+import runpy
+import sys
 import tempfile
 import unittest
-from pathlib import Path
+from unittest.mock import patch
 import numpy as np
-from innova.io import validate, save_results
-from day05.simulated_scan import scan
-from day06.rftrack_scan import configuration, load_adapter, scan as real_scan, METRICS
+import uproot
+from rftrack_double import fake_rftrack
 
-HAS_UPROOT = importlib.util.find_spec('uproot') is not None
+PROJECT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT))
 HAS_ROOT = importlib.util.find_spec('ROOT') is not None
 
-class PipelineTests(unittest.TestCase):
-    def test_simulated_schema_and_summary(self):
-        sim, parts = scan()
-        validate(sim, parts)
+class ExampleTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.previous = Path.cwd()
+        os.chdir(self.tmp.name)
+    def tearDown(self):
+        os.chdir(self.previous)
+        self.tmp.cleanup()
+    def execute(self, path):
+        with contextlib.redirect_stdout(io.StringIO()):
+            return runpy.run_path(str(PROJECT/path))
+
+    def test_day04_tree_and_ntuple(self):
+        self.execute('day04/write_tree.py')
+        self.execute('day04/write_ntuple.py')
+        for path, classname in [('data/day04_tree.root', 'TTree'),
+                                ('data/day04_ntuple.root', 'ROOT::RNTuple')]:
+            with uproot.open(path) as f:
+                tree = f['particles']
+                self.assertEqual(tree.classname, classname)
+                self.assertEqual(tree.num_entries, 5)
+                np.testing.assert_array_equal(tree.arrays(library='np')['energy'], [10,11,12,13,14])
+        self.execute('day04/read.py')
+
+    def test_day04_concatenate_iterate(self):
+        self.execute('day04/write_tree.py')
+        result = self.execute('day04/multiple_files.py')
+        np.testing.assert_array_equal(result['columns']['energy'], [10,11,12,13,14,15,16])
+        blocks = list(uproot.iterate(result['files'], step_size=2, library='np'))
+        self.assertEqual([len(b['energy']) for b in blocks], [2,2,1,2])
+
+    def test_day05_summary_relation_and_roundtrip(self):
+        result = self.execute('day05/simulated_scan.py')
+        sim, part = result['sim'], result['part']
         self.assertEqual(len(sim['run_id']), 6)
-        self.assertEqual(len(parts['run_id']), 600)
+        self.assertEqual(len(part['run_id']), 600)
+        self.assertEqual(len(np.unique(sim['run_id'])), 6)
+        self.assertTrue(np.all(np.isin(part['run_id'], sim['run_id'])))
         for i in range(6):
-            mask = parts['run_id'] == i
-            self.assertEqual(mask.sum(), 100)
-            self.assertAlmostEqual(parts['energy'][mask].mean(), sim['mean_energy'][i])
-            self.assertAlmostEqual(parts['energy'][mask].std(), sim['sigma_energy'][i])
-        again = scan()
-        for key in parts:
-            np.testing.assert_array_equal(parts[key], again[1][key])
+            energies = part['energy'][part['run_id'] == i]
+            self.assertEqual(len(energies), 100)
+            self.assertAlmostEqual(energies.mean(), sim['mean_energy'][i])
+            self.assertAlmostEqual(energies.std(), sim['sigma_energy'][i])
+        self.assertEqual(len(result['energies']), 100)
+        again = self.execute('day05/simulated_scan.py')
+        np.testing.assert_array_equal(part['energy'], again['part']['energy'])
 
-    def test_invalid_relations(self):
-        sim, parts = scan()
-        bad = dict(parts, run_id=parts['run_id']+100)
-        with self.assertRaises(ValueError): validate(sim, bad)
-        bad_sim = dict(sim, run_id=np.zeros(6, dtype=np.int64))
-        with self.assertRaises(ValueError): validate(bad_sim, parts)
-        with self.assertRaises(ValueError): validate(sim, dict(parts, x=parts['x'][:-1]))
-        with self.assertRaises(ValueError): validate(sim, dict(parts, x=np.full(600, np.nan)))
-
-    def test_external_dependency_fails_explicitly(self):
-        with self.assertRaises(FileNotFoundError): load_adapter('missing_javier_adapter.py')
-
-    def test_rftrack_contract_with_test_double(self):
-        # Doble deliberado de prueba: NO ejecuta RF-Track y NO afirma validar física.
-        calls = []
-        class Bunch:
-            def get_phase_space(self, fmt):
-                self.asserted_format = fmt
-                return np.zeros((20000, 6))
-        class Adapter:
-            def build_dc_beam(self, config):
-                calls.append(config)
-                return Bunch()
-            def StandingWaveCavity(self, config): return object()
-            def safe_tracking_options(self, config): return object()
-            def track_volume(self, beam, cavity, options, config): return Bunch()
-            def beam_properties(self, out, initial, config):
-                return {k: 1.0 for k in METRICS}
-        sim, parts = real_scan(Adapter())
-        validate(sim, parts)
+    def test_day06_original_calls_population_and_losses(self):
+        # Ejecuta el script nuevo con el Python ORIGINAL y un doble de RF-Track.
+        # Las pérdidas del 50% son artificiales: NO verifican física.
+        api = fake_rftrack()
+        with patch.dict(sys.modules, {'RF_Track': api}):
+            result = self.execute('day06/rftrack_scan.py')
+        with uproot.open('data/rftrack_amplitude_scan.root') as file:
+            sim = file['simulations'].arrays(library='np')
+            part = file['particles'].arrays(library='np')
         np.testing.assert_array_equal(sim['A'], [.08, .10, .12])
-        self.assertEqual(len(parts['run_id']), 60000)
-        self.assertEqual([c['n_macroparticles_injected'] for c in calls], [20000]*3)
-        self.assertAlmostEqual(configuration(.1)['kinetic_energy_inj_MeV'], .04655, places=5)
+        np.testing.assert_array_equal(sim['n_macroparticles_injected'], [20000]*3)
+        np.testing.assert_array_equal(sim['n_macroparticles_output'], [10000]*3)
+        np.testing.assert_allclose(sim['transmission_fraction'], [.5]*3)
+        self.assertEqual(len(part['run_id']), 30000)
+        self.assertAlmostEqual(result['kinetic_energy'], .04655, places=5)
+        for i, volume in enumerate(api.volumes):
+            self.assertEqual([c[0] for c in volume.calls], ['add','s0','s1','track'])
+            cavity = volume.calls[0][1][0]
+            self.assertEqual(cavity.A, [.08,.10,.12][i])
+            self.assertEqual(cavity.number_of_cells, 5)
+            self.assertEqual(volume.calls[2][1], cavity.length_m)
+            self.assertAlmostEqual(volume.calls[3][1].dt_mm, (1e9/2856e6)*api.ns/40)
+        for name, expected in json.loads((PROJECT/'docs/ORIGINALS.json').read_text())['files'].items():
+            self.assertEqual(result['record']['originals_sha256'][name], expected['sha256'])
 
-    @unittest.skipUnless(HAS_UPROOT, 'uproot no instalado')
-    def test_uproot_roundtrip_and_join(self):
-        import uproot
-        sim, parts = scan()
-        with tempfile.TemporaryDirectory() as tmp:
-            file = Path(tmp)/'scan.root'
-            save_results(file, sim, parts)
-            with uproot.open(file) as f:
-                self.assertEqual(f['simulations'].classname, 'TTree')
-                self.assertEqual(f['particles'].classname, 'TTree')
-                s = f['simulations'].arrays(library='np')
-                p = f['particles'].arrays(library='np')
-                for table, recovered in [(sim, s), (parts, p)]:
-                    for key in table: np.testing.assert_array_equal(table[key], recovered[key])
-                ids = s['run_id'][(s['gradient']==11)&(s['phase']==20)]
-                self.assertEqual(len(ids), 1)
-                self.assertEqual((p['run_id']==ids[0]).sum(), 100)
+    def test_original_hashes_and_notebook_syntax(self):
+        records = json.loads((PROJECT/'docs/ORIGINALS.json').read_text())
+        for name, expected in records['files'].items():
+            self.assertEqual(hashlib.sha256((PROJECT/'external/javier'/name).read_bytes()).hexdigest(), expected['sha256'])
+        notebook = json.loads((PROJECT/'external/javier/Sweeps y Operaciones.ipynb').read_text(encoding='utf-8'))
+        for i, cell in enumerate(notebook['cells']):
+            if cell['cell_type'] == 'code': compile(''.join(cell['source']), str(i), 'exec')
 
-    @unittest.skipUnless(HAS_UPROOT, 'uproot no instalado')
-    def test_tree_ntuple_and_blocks(self):
-        from day04.uproot_io import main
-        with tempfile.TemporaryDirectory() as tmp: main(tmp)
+    def test_original_units_seed_and_notebook_margin(self):
+        api = fake_rftrack()
+        with patch.dict(sys.modules, {'RF_Track': api}):
+            from external.javier import Funciones as functions
+            energy = functions.kinetic_energy_from_beta(.4)
+            self.assertAlmostEqual(functions.beta_from_kinetic_energy(energy), .4)
+            beam = functions.build_dc_beam(2856e6, energy, .150, 20000, seed=42)
+            again = functions.build_dc_beam(2856e6, energy, .150, 20000, seed=42)
+            np.testing.assert_array_equal(beam.data, again.data)
+            self.assertAlmostEqual(beam.get_info().transmission, .150/2856e6*api.C)
+            for A in (.08,.10,.12):
+                cavity = functions.StandingWaveCavity(2856e6, .5, A=A, number_of_cells=5)
+                self.assertTrue(functions.check_capture_margin(cavity, energy)[0])
+                self.assertAlmostEqual(functions.field_to_normalized_amplitude(cavity.E0,2856e6), A)
+            cavity = functions.StandingWaveCavity(2856e6, .5, A=1.2, number_of_cells=8)
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertFalse(functions.check_capture_margin(cavity, functions.kinetic_energy_from_beta(.3))[0])
 
-    @unittest.skipUnless(HAS_ROOT and HAS_UPROOT, 'ROOT/PyROOT o uproot no instalado')
-    def test_root_interoperability(self):
-        import ROOT
-        sim, parts = scan()
-        with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp)/'test.root'
-            save_results(path, sim, parts)
-            self.assertEqual(ROOT.RDataFrame('particles', str(path)).Count().GetValue(), 600)
+    @unittest.skipUnless(HAS_ROOT, 'PyROOT no instalado')
+    def test_days02_03_root(self):
+        self.execute('day02/trees.py')
+        with uproot.open('data/day02.root') as file:
+            np.testing.assert_array_equal(file['particles'].arrays(library='np')['energy'], [10,11,12,13,14])
+        result = self.execute('day03/numpy_root.py')
+        self.assertEqual(result['df'].Count().GetValue(), 3)
+        self.assertEqual(result['selected'].Count().GetValue(), 2)
+        chain = self.execute('day03/chain.py')['chain']
+        self.assertEqual(chain.GetEntries(), 6)
+
+    @unittest.skipUnless(HAS_ROOT, 'PyROOT no instalado')
+    def test_day07_root_analysis_structure(self):
+        with patch.dict(sys.modules, {'RF_Track': fake_rftrack()}):
+            self.execute('day06/rftrack_scan.py')
+        result = self.execute('day07/analyze.py')
+        self.assertEqual(result['simulations'].Count().GetValue(), 3)
+        self.assertEqual(result['selected'].Count().GetValue(), 2)
+        self.assertEqual(result['particles'].Count().GetValue(), 30000)
 
 if __name__ == '__main__': unittest.main()
