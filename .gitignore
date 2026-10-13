@@ -1,0 +1,7 @@
+*.root
+.venv/
+__pycache__/
+*.py[cod]
+build/
+external/javier/*
+!external/javier/README.md

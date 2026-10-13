@@ -1,0 +1,14 @@
+{
+  "files": {
+    "Funciones.py": {
+      "sha256": "be7aa8f7fed14e9506d90868286918077d7a65558d9f5ef9b50dc8d8c1c817e4",
+      "bytes": 21940
+    },
+    "Sweeps y Operaciones.ipynb": {
+      "sha256": "634c361acfd02594b9271363d9181c9e9a0a1f880d2fa25522ea6c35cc0eab8f",
+      "bytes": 399466
+    }
+  },
+  "byte_identical_to_supplied_files": true,
+  "notebook_executed": false
+}
