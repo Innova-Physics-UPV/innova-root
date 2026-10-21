@@ -1,4 +1,5 @@
 import ROOT
+import numpy as np
 
 def load_simulations(file_path):
     return ROOT.RDataFrame("simulations", file_path)
@@ -49,6 +50,33 @@ def add_rf_phase(df, frequency):
     df_phase = df.Define("phase_deg",f"fmod(360.0 * t * {frequency} / {c}, 360.0)")
     return df_phase
 
+def add_centered_rf_phase(df_phase):
+    df_centered_phase = df_phase.Define("centered_phase_deg","phase_deg < 180.0 ? phase_deg : phase_deg - 360.0")
+    return df_centered_phase
+
+def add_kinetic_energy(df):
+    m_e = 0.51099895
+    df_energy = df.Define("Ek_MeV",f"sqrt(Pc * Pc + {m_e} * {m_e}) - {m_e}")
+    return df_energy
+
+def circular_phase_spread(df):
+    df_circular = df.Define(
+        "cos_phase",
+        "cos(phase_deg * 3.141592653589793 / 180.0)"
+    ).Define(
+        "sin_phase",
+        "sin(phase_deg * 3.141592653589793 / 180.0)"
+    )
+
+    mean_cos = df_circular.Mean("cos_phase").GetValue()
+    mean_sin = df_circular.Mean("sin_phase").GetValue()
+
+    mean_vector = min(np.sqrt(mean_cos**2+mean_sin**2),1)
+    circular_phase_spread = np.sqrt(-2 * np.log(mean_vector)) if mean_vector > 0 else np.inf
+    circular_phase_spread_deg = circular_phase_spread * 180/np.pi
+
+    return circular_phase_spread_deg
+
 def plot_simulations(df, prop1, prop2):
     graph = df.Graph(prop1, prop2).GetValue()
     graph.SetMarkerStyle(20)
@@ -73,7 +101,7 @@ def plot_histogram(df, variable, bins=100, minimum=None, maximum=None):
     hist.Draw()
     canvas.SaveAs(f"data/hist_{variable}.png")
 
-def plot_phase_space(df, x, y, bins=100):
+def plot_phase_space(df, x, y, bins=100, x_label=None, y_label=None):
     x_min = df.Min(x).GetValue()
     x_max = df.Max(x).GetValue()
     y_min = df.Min(y).GetValue()
@@ -91,8 +119,8 @@ def plot_phase_space(df, x, y, bins=100):
 
     canvas = ROOT.TCanvas("c_phase", "Phase Space", 900, 600)
 
-    hist.GetXaxis().SetTitle(f"{x} (mm/c)")
-    hist.GetYaxis().SetTitle(f"{y} (MeV/c)")
+    hist.GetXaxis().SetTitle(f"{x} ({x_label})")
+    hist.GetYaxis().SetTitle(f"{y} ({y_label})")
 
     canvas.SetRightMargin(0.15)
     hist.Draw("COLZ")
