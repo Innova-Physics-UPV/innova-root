@@ -1,5 +1,6 @@
 from Prototype import Converter
 from Prototype import Analyzer
+from Prototype import Validator
 import ROOT
 
 simulations, particles = Converter.npz_reader(
@@ -44,10 +45,9 @@ spread_root = Analyzer.circular_phase_spread(df_phase)
 
 df_sim = ROOT.RDataFrame("simulations", "data/results_npz.root")
 
-spread_rftrack = df_sim.Take["double"](
-    "phase_spread_rms_deg"
-).GetValue()[0]
+phase_result = Validator.validate_phase_spread(df_phase, df_sim)
+energy_result = Validator.validate_mean_kinetic_energy(df_energy, df_sim)
 
-print("ROOT:", spread_root)
-print("RF-Track:", spread_rftrack)
-print("Diferencia:", abs(spread_root - spread_rftrack))
+results = [phase_result, energy_result]
+
+report = Validator.build_validation_report(results)
