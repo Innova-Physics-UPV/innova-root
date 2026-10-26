@@ -17,59 +17,52 @@ def csv_reader(input_file):
 
 def npz_reader(input_file):
     with np.load(input_file, allow_pickle=False) as file:
+        data = file["phase_space"]
+
         simulations = {
-            key: file[key].copy()
+            key: np.array([file[key].item()])
             for key in file.files
             if key != "phase_space"
         }
-    return simulations
 
-#Convierte el Numpy a un TTree
-def converter(simulations,file_name):
-    with uproot.recreate(file_name) as file:
-        types = {
-            column: values.dtype
-            for column, values in simulations.items()
+        run_id = int(file["run_id"].item())
+
+        particles = {
+            "run_id": np.full(len(data), run_id),
+            "x": data[:, 0],
+            "xp": data[:, 1],
+            "y": data[:, 2],
+            "yp": data[:, 3],
+            "t": data[:, 4],
+            "Pc": data[:, 5]
         }
 
-        tree = file.mktree("simulations", types)
-        tree.extend(simulations)
-    print('Guardado:', file_name)
+    return simulations, particles
 
-def approve(simulations,output_file):
-    with uproot.open(output_file) as file:
-        tree = file["simulations"]
-        recovered = tree.arrays(library="np")
-        for column in simulations:
-            assert np.array_equal(
-                simulations[column],
-                recovered[column],
-                equal_nan=True
-            )
-        print("Todos los datos coinciden")
+#Convierte el Numpy a un TTree
+def converter(datasets, file_name):
+    with uproot.recreate(file_name) as file:
+        for name, columns in datasets.items():
+            types = {
+                column: values.dtype
+                for column, values in columns.items()
+            }
 
+            tree = file.mktree(name, types)
+            tree.extend(columns)
 
- #EJEMPLO CON CSV
-df=csv_reader("external/javier/results1.csv")
-#Revisar los nombres de las columnas
-df = df.rename(columns={
-    "transmissión_fraction": "transmission_fraction",
-    "mea_kinetic_energy_MeV": "mean_kinetic_energy_MeV"
-})
+    print("Guardado:", file_name)
 
-simulations = {
-    column: df[column].to_numpy()
-    for column in df.columns
-}
+def approve(datasets, file_name):
+    with uproot.open(file_name) as file:
+        for name, columns in datasets.items():
+            recovered = file[name].arrays(library="np")
 
-converter(simulations, "data/results_csv.root")
+            for column, original in columns.items():
+                assert np.array_equal(
+                    original,
+                    recovered[column],
+                    equal_nan=True
+                ), f"Error en {name}/{column}"
 
-approve(simulations, "data/results_csv.root")
-
-
-#EJEMPLO CON NPZ
-simulations=npz_reader("external/results1.npz")
-
-converter(simulations, "data/results_npz.root")
-
-approve(simulations, "data/results_npz.root")
+            print(f"{name}: {len(next(iter(columns.values())))} entradas verificadas")

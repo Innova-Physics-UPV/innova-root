@@ -8,3 +8,4 @@ external/javier/*
 *.png
 *.csv
 *.npz
+!tests/fixtures/run_0000.npz

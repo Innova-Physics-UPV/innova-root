@@ -2,11 +2,25 @@ import ROOT
 
 from Prototype import Analyzer, Validator
 
-def test_rftrack_physics_validation():
-    file_path = "data/results_npz.root"
+from Prototype import Converter
 
-    df_particles = ROOT.RDataFrame("particles", file_path)
-    df_sim = ROOT.RDataFrame("simulations", file_path)
+from pathlib import Path
+
+def test_rftrack_physics_validation(tmp_path):
+    input_file = Path(__file__).parent / "fixtures" / "run_0000.npz"
+    output_file = tmp_path / "results.root"
+
+    simulations, particles = Converter.npz_reader(input_file)
+
+    datasets = {
+        "simulations": simulations,
+        "particles": particles
+    }
+
+    Converter.converter(datasets, output_file)
+
+    df_particles = ROOT.RDataFrame("particles", str(output_file))
+    df_sim = ROOT.RDataFrame("simulations", str(output_file))
 
     frequency = df_sim.Take["double"]("frequency").GetValue()[0]
 
