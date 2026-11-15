@@ -1,4 +1,4 @@
-"""Día 3: leer dos TTree como uno. Ejecutar antes day03.numpy_root."""
+"""Día 3: leer dos TTree como uno. Ejecutar antes Formacion.day03.numpy_root."""
 import ROOT
 
 chain = ROOT.TChain('particles')

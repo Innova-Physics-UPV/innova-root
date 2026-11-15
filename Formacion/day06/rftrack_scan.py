@@ -1,13 +1,13 @@
 """Día 6: RF-Track real -> NumPy -> dos TTree con uproot.
 
-Ejecutar desde la raíz: python -m day06.rftrack_scan
+Ejecutar desde la raíz: python -m Formacion.day06.rftrack_scan
 Las funciones físicas son las originales de Javier, sin adaptador intermedio.
 """
 from pathlib import Path
 import numpy as np
 import uproot
 import RF_Track as rft
-from external.javier.Funciones import (
+from external.Funciones import (
     kinetic_energy_from_beta, build_dc_beam, StandingWaveCavity,
     safe_tracking_options, check_capture_margin, beam_properties,
 )
@@ -116,7 +116,7 @@ try:
     rftrack_version = version('RF-Track')
 except PackageNotFoundError:
     rftrack_version = 'no disponible'
-original_dir = Path(__file__).resolve().parents[1] / 'external' / 'javier'
+original_dir = Path(__file__).resolve().parents[2] / 'external'
 hashes = {}
 for name in ['Funciones.py', 'Sweeps y Operaciones.ipynb']:
     hashes[name] = hashlib.sha256((original_dir/name).read_bytes()).hexdigest()

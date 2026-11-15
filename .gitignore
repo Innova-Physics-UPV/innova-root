@@ -3,8 +3,11 @@
 __pycache__/
 *.py[cod]
 build/
-external/javier/*
-!external/javier/README.md
+external/*
+!external/Funciones.py
+!external/README.md
+!external/Sweeps y Operaciones.ipynb
+*.json
 *.png
 *.csv
 *.npz

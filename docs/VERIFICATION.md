@@ -1,5 +1,18 @@
 # Verificación: versión simplificada
 
+## Reorganización en Formacion (2026-10-26)
+
+En WSL, `.venv/bin/python -m pytest -q`: 15 pruebas aprobadas antes y
+después del traslado, sin omisiones. Un aviso de la distribución alfa
+de ROOT. Las pruebas del pipeline emplean un doble de RF-Track;
+este traslado no valida de nuevo el tracking físico real.
+
+Se actualizaron rutas de ejecución, tests y documentación; el día 6
+resuelve `external/` desde la raíz del repositorio. Sus archivos
+se conservan byte por byte. Las salidas relativas siguen en `data/`.
+
+Las secciones siguientes conservan la verificación histórica del ZIP.
+
 ## Esta versión
 
 8 pruebas ejecutadas: 6 aprobadas y 2 omitidas porque el entorno local de Codex
@@ -37,8 +50,8 @@ elimina las capas intermedias. Para completar la verificación de esta revisión
 ejecutar en tu WSL desde la raíz con el mismo entorno activo:
 ```
 python tests/run_local.py
-python -m day06.rftrack_scan
-python -m day07.analyze
+python -m Formacion.day06.rftrack_scan
+python -m Formacion.day07.analyze
 ```
 Esperar tres simulaciones, 60000 filas si no hay pérdidas y 20000/run. Comparar
 con reference_results.csv y con la salida anterior; no exigir igualdad exacta

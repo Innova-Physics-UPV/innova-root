@@ -1,7 +1,7 @@
 from Prototype import Converter
 from Prototype import Analyzer
 
-df=Converter.csv_reader("external/javier/results1.csv")
+df=Converter.csv_reader("external/results1.csv")
 #Revisar los nombres de las columnas
 df = df.rename(columns={
     "transmissión_fraction": "transmission_fraction",

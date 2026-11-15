@@ -1,6 +1,6 @@
 # Procedencia de la versión simplificada
 
-Los dos archivos de external/javier/ son copias exactas suministradas por el
+Los dos archivos de external/ son copias exactas suministradas por el
 usuario. SHA-256 en ORIGINALS.json. Ninguna función de Javier fue reescrita.
 La conversación Formación en ROOT (6a6b9708-6e54-83eb-b7ed-50ef86ee36de) y el PDF
 son fuentes para reconstruir los ejemplos, no para recuperar su texto original.
@@ -12,12 +12,12 @@ No se incluye una copia binaria del PDF ni se ha realizado inspección visual.
 
 | Archivos | Fuente / grado de fidelidad |
 |---|---|
-| day02/trees.py y trees.C | PDF §6.1–6.4: conceptos fieles; código y cinco filas nuevos |
-| day03/numpy_root.py, chain.py, chain.C | §6.5, §6.7–6.10: flujo fiel; datos nuevos |
-| day04/*.py | §7: operaciones fieles; ejemplos cortos nuevos y mkrntuple explícito |
-| day05/simulated_scan.py | §8: esquema y 6x100 fieles; fórmula, gradientes, fases y RNG de ejemplo |
-| day06/rftrack_scan.py | §9 y Funciones._selftest: llamadas originales directas; barrido del PDF |
-| day07/analyze.py, analyze.C | §10: análisis fiel; histograma r2 nuevo |
+| Formacion/day02/trees.py y trees.C | PDF §6.1–6.4: conceptos fieles; código y cinco filas nuevos |
+| Formacion/day03/numpy_root.py, chain.py, chain.C | §6.5, §6.7–6.10: flujo fiel; datos nuevos |
+| Formacion/day04/*.py | §7: operaciones fieles; ejemplos cortos nuevos y mkrntuple explícito |
+| Formacion/day05/simulated_scan.py | §8: esquema y 6x100 fieles; fórmula, gradientes, fases y RNG de ejemplo |
+| Formacion/day06/rftrack_scan.py | §9 y Funciones._selftest: llamadas originales directas; barrido del PDF |
+| Formacion/day07/analyze.py, analyze.C | §10: análisis fiel; histograma r2 nuevo |
 | tests/*, README y guías | Material nuevo, separado de los ejemplos |
 | docs/reference_results.csv | Tabla §10.5 transcrita; no salida generada aquí |
 

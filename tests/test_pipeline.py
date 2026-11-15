@@ -32,8 +32,8 @@ class ExampleTests(unittest.TestCase):
             return runpy.run_path(str(PROJECT/path))
 
     def test_day04_tree_and_ntuple(self):
-        self.execute('day04/write_tree.py')
-        self.execute('day04/write_ntuple.py')
+        self.execute('Formacion/day04/write_tree.py')
+        self.execute('Formacion/day04/write_ntuple.py')
         for path, classname in [('data/day04_tree.root', 'TTree'),
                                 ('data/day04_ntuple.root', 'ROOT::RNTuple')]:
             with uproot.open(path) as f:
@@ -41,17 +41,17 @@ class ExampleTests(unittest.TestCase):
                 self.assertEqual(tree.classname, classname)
                 self.assertEqual(tree.num_entries, 5)
                 np.testing.assert_array_equal(tree.arrays(library='np')['energy'], [10,11,12,13,14])
-        self.execute('day04/read.py')
+        self.execute('Formacion/day04/read.py')
 
     def test_day04_concatenate_iterate(self):
-        self.execute('day04/write_tree.py')
-        result = self.execute('day04/multiple_files.py')
+        self.execute('Formacion/day04/write_tree.py')
+        result = self.execute('Formacion/day04/multiple_files.py')
         np.testing.assert_array_equal(result['columns']['energy'], [10,11,12,13,14,15,16])
         blocks = list(uproot.iterate(result['files'], step_size=2, library='np'))
         self.assertEqual([len(b['energy']) for b in blocks], [2,2,1,2])
 
     def test_day05_summary_relation_and_roundtrip(self):
-        result = self.execute('day05/simulated_scan.py')
+        result = self.execute('Formacion/day05/simulated_scan.py')
         sim, part = result['sim'], result['part']
         self.assertEqual(len(sim['run_id']), 6)
         self.assertEqual(len(part['run_id']), 600)
@@ -63,7 +63,7 @@ class ExampleTests(unittest.TestCase):
             self.assertAlmostEqual(energies.mean(), sim['mean_energy'][i])
             self.assertAlmostEqual(energies.std(), sim['sigma_energy'][i])
         self.assertEqual(len(result['energies']), 100)
-        again = self.execute('day05/simulated_scan.py')
+        again = self.execute('Formacion/day05/simulated_scan.py')
         np.testing.assert_array_equal(part['energy'], again['part']['energy'])
 
     def test_day06_original_calls_population_and_losses(self):
@@ -71,7 +71,7 @@ class ExampleTests(unittest.TestCase):
         # Las pérdidas del 50% son artificiales: NO verifican física.
         api = fake_rftrack()
         with patch.dict(sys.modules, {'RF_Track': api}):
-            result = self.execute('day06/rftrack_scan.py')
+            result = self.execute('Formacion/day06/rftrack_scan.py')
         with uproot.open('data/rftrack_amplitude_scan.root') as file:
             sim = file['simulations'].arrays(library='np')
             part = file['particles'].arrays(library='np')
@@ -94,15 +94,15 @@ class ExampleTests(unittest.TestCase):
     def test_original_hashes_and_notebook_syntax(self):
         records = json.loads((PROJECT/'docs/ORIGINALS.json').read_text())
         for name, expected in records['files'].items():
-            self.assertEqual(hashlib.sha256((PROJECT/'external/javier'/name).read_bytes()).hexdigest(), expected['sha256'])
-        notebook = json.loads((PROJECT/'external/javier/Sweeps y Operaciones.ipynb').read_text(encoding='utf-8'))
+            self.assertEqual(hashlib.sha256((PROJECT/'external'/name).read_bytes()).hexdigest(), expected['sha256'])
+        notebook = json.loads((PROJECT/'external/Sweeps y Operaciones.ipynb').read_text(encoding='utf-8'))
         for i, cell in enumerate(notebook['cells']):
             if cell['cell_type'] == 'code': compile(''.join(cell['source']), str(i), 'exec')
 
     def test_original_units_seed_and_notebook_margin(self):
         api = fake_rftrack()
         with patch.dict(sys.modules, {'RF_Track': api}):
-            from external.javier import Funciones as functions
+            from external import Funciones as functions
             energy = functions.kinetic_energy_from_beta(.4)
             self.assertAlmostEqual(functions.beta_from_kinetic_energy(energy), .4)
             beam = functions.build_dc_beam(2856e6, energy, .150, 20000, seed=42)
@@ -119,20 +119,20 @@ class ExampleTests(unittest.TestCase):
 
     @unittest.skipUnless(HAS_ROOT, 'PyROOT no instalado')
     def test_days02_03_root(self):
-        self.execute('day02/trees.py')
+        self.execute('Formacion/day02/trees.py')
         with uproot.open('data/day02.root') as file:
             np.testing.assert_array_equal(file['particles'].arrays(library='np')['energy'], [10,11,12,13,14])
-        result = self.execute('day03/numpy_root.py')
+        result = self.execute('Formacion/day03/numpy_root.py')
         self.assertEqual(result['df'].Count().GetValue(), 3)
         self.assertEqual(result['selected'].Count().GetValue(), 2)
-        chain = self.execute('day03/chain.py')['chain']
+        chain = self.execute('Formacion/day03/chain.py')['chain']
         self.assertEqual(chain.GetEntries(), 6)
 
     @unittest.skipUnless(HAS_ROOT, 'PyROOT no instalado')
     def test_day07_root_analysis_structure(self):
         with patch.dict(sys.modules, {'RF_Track': fake_rftrack()}):
-            self.execute('day06/rftrack_scan.py')
-        result = self.execute('day07/analyze.py')
+            self.execute('Formacion/day06/rftrack_scan.py')
+        result = self.execute('Formacion/day07/analyze.py')
         self.assertEqual(result['simulations'].Count().GetValue(), 3)
         self.assertEqual(result['selected'].Count().GetValue(), 2)
         self.assertEqual(result['particles'].Count().GetValue(), 30000)
